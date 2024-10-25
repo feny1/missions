@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Tracker</title>
+    <style>
+        :root {
+            --header: #b90010;
+            --header-text: #f1f1f1;
+            --background: #fafafa;
+            --second-text: #130000;
+            --header-font: 'Tropical', sans-serif;
+            --text-font: 'Poppins', sans-serif;
+            --button-background: #af2c2c;
+            --button-hover: #b10000;
+            --button-text: #f1f1f1;
+        }
+
+        body {
+            font-family: var(--text-font);
+            background-color: var(--background);
+            margin: 0;
+            padding: 100px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: var(--header);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .close {
+            cursor: pointer;
+            color: var(--header);
+            float: right;
+        }
+
+        input[type="text"],
+        select,
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: var(--button-background);
+            color: var(--button-text);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            max-width: 150px;
+            width: auto;
+        }
+
+        button:hover {
+            background-color: var(--button-hover);
+        }
+
+        #missionList {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        #headerButtons {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            /* Space between buttons */
+        }
+
+        #headerButtons button {
+            margin: 0;
+            /* Reset margin */
+        }
+
+        .mission {
+            margin: 10px auto;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .mission div {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .dayGroup {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .dayTitle {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .typeTitle {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .modal-content {
+                width: 95%;
+            }
+
+            .mission {
+                flex-direction: column;
+                align-items: flex-start;
+                max-width: 90%;
+            }
+
+            .mission div {
+                width: 100%;
+                justify-content: space-around;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1 id="headerTitle">Mission Tracker</h1>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2 id="modalTitle">Add Mission</h2>
+            <input type="date" id="dateInput" placeholder="Enter Date (e.g., 2024-10-25)">
+            <select id="typeInput">
+                <option value="" disabled selected>Mission Type</option>
+                <option value="Project">Project</option>
+                <option value="Homework">Homework</option>
+                <option value="Quiz">Quiz</option>
+                <option value="Mid">Mid</option>
+                <option value="Final">Final</option>
+                <option value="AdditionalClass">Additional Class</option>
+            </select>
+            <input type="text" id="labelInput" placeholder="Mission Label">
+            <input type="text" id="descriptionInput" placeholder="Description">
+            <button id="addMission">Add Mission</button>
+        </div>
+    </div>
+    <div id="headerButtons">
+        <button id="translateButton">عربي</button>
+        <button id="copyButton">Copy All Missions</button>
+        <button id="printButton">PDF</button>
+        <button id="shareButton">Share</button>
+    </div>
+
+    <button id="openModal">Add Mission</button>
+    <div id="missionList"></div>
+
+    <script>
+        const modal = document.getElementById('modal');
+        const closeModal = document.getElementById('closeModal');
+        const dateInput = document.getElementById('dateInput');
+        const labelInput = document.getElementById('labelInput');
+        const typeInput = document.getElementById('typeInput');
+        const descriptionInput = document.getElementById('descriptionInput');
+        const addMission = document.getElementById('addMission');
+        const missionList = document.getElementById('missionList');
+        const openModal = document.getElementById('openModal');
+        const headerTitle = document.getElementById('headerTitle');
+        const modalTitle = document.getElementById('modalTitle');
+        const translateButton = document.getElementById('translateButton');
+        const copyButton = document.getElementById('copyButton');
+        const shareButton = document.getElementById('shareButton');
+        const printButton = document.getElementById('printButton');
+
+        let language = localStorage.getItem('language') || 'en';
+        let missions = JSON.parse(localStorage.getItem('missions')) || [];
+        let editingIndex = -1;
+
+        const translations = {
+            en: {
+                headerTitle: "Mission Tracker",
+                modalTitle: "Add Mission",
+                addMission: "Add Mission",
+                openModal: "Add Mission",
+                placeholderLabel: "Mission Label",
+                placeholderDescription: "Description",
+                typeInput: 'Mission Type',
+                types: {
+                    Project: "Project",
+                    Homework: "Homework",
+                    Quiz: "Quiz",
+                    Mid: "Mid",
+                    Final: "Final",
+                    AdditionalClass: "Additional Class"
+                },
+                edit: "Edit",
+                delete: "Delete",
+                copySuccess: "Missions copied to clipboard!",
+                shareSuccess: "Share this URL: ",
+                copy: 'Copy',
+                share: 'Share'
+            },
+            ar: {
+                headerTitle: "متتبع المهام",
+                modalTitle: "إضافة مهمة",
+                addMission: "إضافة مهمة",
+                openModal: "إضافة مهمة",
+                placeholderLabel: "اسم المهمة",
+                placeholderDescription: "الوصف",
+                typeInput: 'نوع المهمة',
+                types: {
+                    Project: "مشروع",
+                    Homework: "واجب",
+                    Quiz: "اختبار قصير",
+                    Mid: "اختبار نصفي",
+                    Final: "اختبار نهائي",
+                    AdditionalClass: "محاضرة إضافية"
+                },
+                edit: "تعديل",
+                delete: "حذف",
+                copySuccess: "تم نسخ المهام إلى الحافظة!",
+                shareSuccess: "شارك هذا الرابط: ",
+                copy: 'نسخ',
+                share: 'شارك'
+            }
+        };
+
+        function loadMissions() {
+            missionList.innerHTML = '';
+            missions.forEach((mission, index) => {
+                const { date, type, label, description } = mission;
+                const day = getDayName(date);
+
+                let dayGroup = document.getElementById(day);
+                if (!dayGroup) {
+                    dayGroup = document.createElement('div');
+                    dayGroup.className = 'dayGroup';
+                    dayGroup.id = day;
+                    dayGroup.innerHTML = `<div class="dayTitle">${day} (${date})</div>`;
+                    missionList.appendChild(dayGroup);
+                }
+
+                let typeSection = dayGroup.querySelector(`.${type}`);
+                if (!typeSection) {
+                    typeSection = document.createElement('div');
+                    typeSection.className = type;
+                    typeSection.innerHTML = `<div class="typeTitle">${translations[language].types[type]}</div>`;
+                    dayGroup.appendChild(typeSection);
+                }
+
+                const missionDiv = document.createElement('div');
+                missionDiv.className = 'mission';
+                missionDiv.innerHTML = `
+                    <span><strong>${label}</strong>: ${description}</span>
+                    <div>
+                        <button class="editButton" data-index="${index}">${translations[language].edit}</button>
+                        <button class="deleteButton" data-index="${index}">${translations[language].delete}</button>
+                    </div>
+                `;
+                typeSection.appendChild(missionDiv);
+            });
+
+            document.querySelectorAll('.editButton').forEach(button => {
+                button.onclick = editMission;
+            });
+
+            document.querySelectorAll('.deleteButton').forEach(button => {
+                button.onclick = deleteMission;
+            });
+        }
+
+        function applyLanguageSettings() {
+            headerTitle.textContent = translations[language].headerTitle;
+            modalTitle.textContent = translations[language].modalTitle;
+            addMission.textContent = translations[language].addMission;
+            openModal.textContent = translations[language].openModal;
+            labelInput.placeholder = translations[language].placeholderLabel;
+            descriptionInput.placeholder = translations[language].placeholderDescription;
+            copyButton.textContent = translations[language].copy;
+            shareButton.textContent = translations[language].share;
+            typeInput.options[0].text = translations[language].typeInput;
+
+            for (let type in translations[language].types) {
+                const option = Array.from(typeInput.options).find(opt => opt.value === type);
+                if (option) {
+                    option.text = translations[language].types[type];
+                }
+            }
+            translateButton.textContent = language === 'en' ? "عربي" : "English";
+        }
+
+        openModal.onclick = () => {
+            resetForm();
+            editingIndex = -1;
+            modalTitle.textContent = translations[language].modalTitle;
+            addMission.textContent = translations[language].addMission;
+            modal.style.display = 'flex';
+        };
+
+        closeModal.onclick = () => {
+            modal.style.display = 'none';
+            resetForm();
+        };
+
+        addMission.onclick = () => {
+            const date = dateInput.value;
+            const day = getDayName(date);
+            const type = typeInput.value;
+            const label = labelInput.value;
+            const description = descriptionInput.value;
+
+            if (day && date && type && label && description) {
+                const newMission = { date, type, label, description };
+                if (editingIndex === -1) {
+                    missions.push(newMission);
+                } else {
+                    missions[editingIndex] = newMission;
+                }
+                localStorage.setItem('missions', JSON.stringify(missions));
+                loadMissions();
+                updateShareLink(); // Update the share link after adding a mission
+
+                modal.style.display = 'none';
+                resetForm();
+            }
+        };
+
+        function editMission(event) {
+            editingIndex = event.target.getAttribute('data-index');
+            const mission = missions[editingIndex];
+
+            dateInput.value = mission.date;
+            labelInput.value = mission.label;
+            descriptionInput.value = mission.description;
+            typeInput.value = mission.type;
+
+            modalTitle.textContent = translations[language].modalTitle;
+            addMission.textContent = translations[language].addMission;
+            modal.style.display = 'flex';
+        }
+
+        function deleteMission(event) {
+            const index = event.target.getAttribute('data-index');
+            missions.splice(index, 1);
+            localStorage.setItem('missions', JSON.stringify(missions));
+            loadMissions();
+            updateShareLink(); // Update the share link after deleting a mission
+        }
+
+        function getDayName(dateString) {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return null;
+
+            const options = { weekday: 'long' };
+            return date.toLocaleDateString(language === 'en' ? 'en-US' : 'ar-EG', options);
+        }
+
+        function resetForm() {
+            dateInput.value = '';
+            labelInput.value = '';
+            descriptionInput.value = '';
+            typeInput.selectedIndex = 0;
+        }
+
+        // Function to update the share link
+        function updateShareLink() {
+            const encodedMissions = encodeURIComponent(JSON.stringify(missions));
+            const shareLink = `${window.location.href}?missions=${encodedMissions}`;
+            shareButton.onclick = () => {
+                shorten(shareLink)
+            };
+        };
+        //shorten a link
+        async function shorten(shareLink) {
+            // Create a FormData object to send the URL
+            const formData = new FormData();
+            formData.append('url', shareLink); // Change 'shareLink' to 'url' for consistency with the PHP script
+
+            try {
+                const response = await fetch('../shorten/index.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                // Log the response for debugging
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                // Check if the response is OK
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                await navigator.clipboard.writeText(data.shortUrl);
+                alert("Share this link: " + data.shortUrl);
+            } catch (err) {
+                console.error('Failed to copy or shorten URL:', err);
+                alert('Error: ' + err.message);
+            }
+        }
+
+        translateButton.onclick = () => {
+            language = language === 'en' ? 'ar' : 'en';
+            localStorage.setItem('language', language);
+            applyLanguageSettings();
+            loadMissions();
+        };
+
+        printButton.onclick = function () {
+            window.print();
+        };
+
+        // Load missions from URL if present
+        function loadMissionsFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const missionsParam = params.get('missions');
+            if (missionsParam) {
+                missions = JSON.parse(decodeURIComponent(missionsParam));
+                addMission.style.display = 'none';
+                openModal.style.display = 'none';
+                labelInput.style.display = 'none';
+                shareButton.style.display = 'none';
+                descriptionInput.style.display = 'none';
+                shareButton.style.display = 'none';
+                typeInput.style.display = 'none';
+                loadMissions();
+            }
+        }
+
+        // Initial load of missions and apply language settings
+        loadMissionsFromURL();
+        loadMissions();
+        applyLanguageSettings();
+        updateShareLink();
+    </script>
+
+</body>
+
+</html>
