@@ -155,7 +155,9 @@
 
             .mission {
                 flex-direction: column;
-                align-items: flex-start;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 max-width: 90%;
             }
 
@@ -270,49 +272,60 @@
             }
         };
 
-        function loadMissions() {
-            missionList.innerHTML = '';
-            missions.forEach((mission, index) => {
-                const { date, type, label, description } = mission;
-                const day = getDayName(date);
+       function loadMissions() {
+    // Sort the missions by date
+    missions.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    missionList.innerHTML = '';
+    missions.forEach((mission, index) => {
+        const { date, type, label, description } = mission;
+        const day = getDayName(date);
 
-                let dayGroup = document.getElementById(day);
-                if (!dayGroup) {
-                    dayGroup = document.createElement('div');
-                    dayGroup.className = 'dayGroup';
-                    dayGroup.id = day;
-                    dayGroup.innerHTML = `<div class="dayTitle">${day} (${date})</div>`;
-                    missionList.appendChild(dayGroup);
-                }
-
-                let typeSection = dayGroup.querySelector(`.${type}`);
-                if (!typeSection) {
-                    typeSection = document.createElement('div');
-                    typeSection.className = type;
-                    typeSection.innerHTML = `<div class="typeTitle">${translations[language].types[type]}</div>`;
-                    dayGroup.appendChild(typeSection);
-                }
-
-                const missionDiv = document.createElement('div');
-                missionDiv.className = 'mission';
-                missionDiv.innerHTML = `
-                    <span><strong>${label}</strong>: ${description}</span>
-                    <div>
-                        <button class="editButton" data-index="${index}">${translations[language].edit}</button>
-                        <button class="deleteButton" data-index="${index}">${translations[language].delete}</button>
-                    </div>
-                `;
-                typeSection.appendChild(missionDiv);
-            });
-
-            document.querySelectorAll('.editButton').forEach(button => {
-                button.onclick = editMission;
-            });
-
-            document.querySelectorAll('.deleteButton').forEach(button => {
-                button.onclick = deleteMission;
-            });
+        let dayGroup = document.getElementById(date);
+        if (!dayGroup) {
+            dayGroup = document.createElement('div');
+            dayGroup.className = 'dayGroup';
+            dayGroup.id = date;
+            dayGroup.innerHTML = `<div class="dayTitle">${day} (${date})</div>`;
+            missionList.appendChild(dayGroup);
         }
+
+        let typeSection = dayGroup.querySelector(`.${type}`);
+        if (!typeSection) {
+            typeSection = document.createElement('div');
+            typeSection.className = type;
+            typeSection.innerHTML = `<div class="typeTitle">${translations[language].types[type]}</div>`;
+            dayGroup.appendChild(typeSection);
+        }
+
+        const missionDiv = document.createElement('div');
+        missionDiv.className = 'mission';
+        const params = new URLSearchParams(window.location.search);
+        const missionsParam = params.get('missions');
+        if (!missionsParam) {
+            missionDiv.innerHTML = `
+            <span><strong>${label}</strong>: ${description}</span>
+            <div>
+                <button class="editButton" data-index="${index}">${translations[language].edit}</button>
+                <button class="deleteButton" data-index="${index}">${translations[language].delete}</button>
+            </div>
+        `;
+        } else {
+            missionDiv.innerHTML = `
+            <span><strong>${label}</strong>: ${description}</span>
+        `;
+        }
+        typeSection.appendChild(missionDiv);
+    });
+
+    document.querySelectorAll('.editButton').forEach(button => {
+        button.onclick = editMission;
+    });
+
+    document.querySelectorAll('.deleteButton').forEach(button => {
+        button.onclick = deleteMission;
+    });
+}
 
         function applyLanguageSettings() {
             headerTitle.textContent = translations[language].headerTitle;
@@ -369,7 +382,17 @@
                 resetForm();
             }
         };
+        copyButton.onclick = () => {
+        const missionsText = missions.map(mission => {
+            return `*${getDayName(mission.date)} (${mission.date})*:\n ${translations[language].types[mission.type]} - ${mission.label}:\n ${mission.description}`;
+        }).join('\n\n');
 
+        navigator.clipboard.writeText(missionsText).then(() => {
+            alert(translations[language].copySuccess); // Show success message
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+        };
         function editMission(event) {
             editingIndex = event.target.getAttribute('data-index');
             const mission = missions[editingIndex];
